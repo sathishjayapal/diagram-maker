@@ -1,0 +1,30 @@
+
+error:
+  handling:
+    http-status-in-json-response: true
+    exception-logging: NO_LOGGING
+    full-stacktrace-http-statuses: 5xx
+    log-levels:
+      5xx: ERROR
+    codes:
+      ValidFileType: VALID_FILE_TYPE
+spring:
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+  docker:
+    compose:
+      lifecycle-management: start-only
+server:
+  tomcat:
+    max-part-count: '100'
+  port: 8091
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
