@@ -80,7 +80,7 @@ module.exports = (env, argv) => ({
     proxy: [
       {
         context: '**',
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8091',
         secure: false,
         prependPath: false,
         headers: {

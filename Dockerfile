@@ -15,7 +15,6 @@ RUN --mount=type=cache,target=/root/.m2 \
 COPY package.json .
 COPY package-lock.json .
 COPY webpack.config.js .
-COPY tsconfig.json .
 
 # Copy source code
 COPY src src
