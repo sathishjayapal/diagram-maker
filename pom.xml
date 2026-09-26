@@ -19,6 +19,18 @@
         <skipITs>true</skipITs>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>2.0.1</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -48,6 +60,15 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.knowm.xchart</groupId>
+            <artifactId>xchart</artifactId>
+            <version>3.8.5</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -174,8 +195,8 @@
                         --add-opens java.base/java.io=ALL-UNNAMED
                         -XX:+EnableDynamicAgentLoading
                     </argLine>
-                    <!-- Skip tests when skipITs is true (default). Integration tests require Docker. -->
-                    <skipTests>${skipITs}</skipTests>
+                    <!-- Run unit tests by default. Docker-backed integration tests use the failsafe plugin if added. -->
+                    <skipTests>false</skipTests>
                 </configuration>
             </plugin>
         </plugins>

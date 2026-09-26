@@ -1,0 +1,12 @@
+model_list:
+  - model_name: default
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: fallback
+    litellm_params:
+      model: ollama/llama3.2:3b
+      api_base: http://192.168.4.101:11434
+
+router_settings:
+  fallbacks: [{ default: [fallback] }]

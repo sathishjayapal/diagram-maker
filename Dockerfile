@@ -36,8 +36,8 @@ WORKDIR /app
 # so this is where the Trivy-flagged CVEs get resolved.
 RUN apk update && apk upgrade --no-cache
 
-# Install wget for healthcheck
-RUN apk add --no-cache wget
+# Install wget for healthcheck and fonts for Java 2D / XChart rendering
+RUN apk add --no-cache wget fontconfig ttf-dejavu
 
 # Create non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
@@ -45,17 +45,21 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 # Copy the built jar
 COPY --from=build /app/target/*.jar app.jar
 
-# Create uploads directory and set ownership
-RUN mkdir -p /app/uploads && chown -R appuser:appgroup /app
+# Create runtime directories and set ownership
+RUN mkdir -p /app/uploads /app/diagrams && chown -R appuser:appgroup /app
 
 USER appuser
 
 # Expose port
 EXPOSE 8091
 
+# Default configuration (override at runtime)
+ENV DIAGRAM_OUTPUT_DIR=/app/diagrams
+ENV JAVA_OPTS="-Djava.awt.headless=true"
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD wget -qO- http://localhost:8091/actuator/health || exit 1
 
 # Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

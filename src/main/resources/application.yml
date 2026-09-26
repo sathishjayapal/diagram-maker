@@ -13,6 +13,14 @@ spring:
     multipart:
       max-file-size: 20MB
       max-request-size: 20MB
+  ai:
+    mcp:
+      server:
+        name: diagram-maker
+        version: 0.0.1-SNAPSHOT
+        protocol: STREAMABLE
+        streamable-http:
+          mcp-endpoint: /mcp
   docker:
     compose:
       lifecycle-management: start-only
@@ -28,3 +36,9 @@ management:
   endpoint:
     health:
       show-details: always
+
+runs-ai-analyzer:
+  base-url: http://192.168.4.101:8081
+
+diagram:
+  output-dir: ${DIAGRAM_OUTPUT_DIR:${user.dir}/diagrams}
