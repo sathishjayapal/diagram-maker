@@ -48,4 +48,31 @@ public class DiagramStorageService {
         return new DiagramFile(uid, target.getFileName().toString(), target.toString(), format.getContentType(), content.length);
     }
 
+    public Path resolveForRead(final String fileName) throws IOException {
+        if (fileName == null || fileName.isBlank()) {
+            throw new InvalidDiagramPathException("Diagram file name is required");
+        }
+
+        final Path requested = Path.of(fileName);
+        if (requested.isAbsolute() || requested.getNameCount() != 1 || !requested.getFileName().toString().equals(fileName)) {
+            throw new InvalidDiagramPathException("Diagram downloads require a file name without path segments");
+        }
+
+        final Path root = Path.of(properties.getOutputDir()).toAbsolutePath().normalize();
+        final Path target = root.resolve(requested).normalize();
+        if (!target.startsWith(root)) {
+            throw new InvalidDiagramPathException("Diagram path escapes configured diagram directory");
+        }
+        if (!Files.isRegularFile(target)) {
+            return null;
+        }
+
+        final Path realRoot = root.toRealPath();
+        final Path realTarget = target.toRealPath();
+        if (!realTarget.startsWith(realRoot)) {
+            throw new InvalidDiagramPathException("Diagram path escapes configured diagram directory");
+        }
+        return realTarget;
+    }
+
 }

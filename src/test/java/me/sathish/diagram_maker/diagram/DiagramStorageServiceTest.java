@@ -75,4 +75,25 @@ class DiagramStorageServiceTest {
                 .hasMessageContaining("must be within configured diagram directory");
     }
 
+    @Test
+    void shouldResolveStoredArtifactForRead() throws IOException {
+        final DiagramFile saved = service.save("diagram".getBytes(), null, ImageFormat.PNG);
+
+        final Path resolved = service.resolveForRead(saved.fileName());
+
+        assertThat(resolved).isEqualTo(Path.of(saved.filePath()).toRealPath());
+    }
+
+    @Test
+    void shouldReturnNullForMissingArtifact() throws IOException {
+        assertThat(service.resolveForRead("missing.png")).isNull();
+    }
+
+    @Test
+    void shouldRejectDownloadPathSegments() {
+        assertThatThrownBy(() -> service.resolveForRead("../escape.png"))
+                .isInstanceOf(InvalidDiagramPathException.class)
+                .hasMessageContaining("without path segments");
+    }
+
 }
