@@ -11,7 +11,7 @@ public class HomeControllerTest extends BaseIT {
     @Test
     void getIndex_success() {
         page.navigate("/");
-        assertThat(page.locator("h1")).hasText("Welcome to your new app!");
+        assertThat(page.locator("h1")).hasText("Welcome to the Diagram Maker MCP");
     }
 
 }
