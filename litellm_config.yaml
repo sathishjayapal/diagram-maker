@@ -1,3 +1,7 @@
+# LiteLLM proxy on runs-server (192.168.4.101), run by ~/.config/systemd/user/litellm.service.
+# Secrets come from ~/.config/litellm/litellm.env (chmod 600), never from this file.
+# Supersedes ~/litellm_config.yaml (root-owned original, left in place).
+
 model_list:
   - model_name: default
     litellm_params:
@@ -5,8 +9,19 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
   - model_name: fallback
     litellm_params:
-      model: ollama/llama3.2:3b
-      api_base: http://192.168.4.101:11434
+      # ollama_chat uses /api/chat (native tool calling). qwen2.5:3b is the 3B model pulled here.
+      model: ollama_chat/qwen2.5:3b
+      api_base: http://localhost:11434
 
 router_settings:
   fallbacks: [{ default: [fallback] }]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+# The diagram-maker container publishes 8091 on this host.
+mcp_servers:
+  diagram_maker:
+    url: "http://localhost:8091/mcp"
+    transport: "http"
+    description: "Generates run-analysis dashboard images for runs-app from runs-ai-analyzer data"
