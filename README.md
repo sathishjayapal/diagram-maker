@@ -36,7 +36,7 @@ The application exposes an MCP tool over Streamable HTTP (`/mcp`) that AI client
 - `src/main/resources/application.yml` - Application configuration
 - `diagrams/` - Default output directory for generated images
 - `docker-compose.yml` - Docker Compose deployment
-- `litellm_config.yaml` - LiteLLM proxy configuration with Ollama fallback
+- `litellm_config.yaml` - Copy of the VM's LiteLLM config (model fallback + MCP gateway)
 
 ## Development
 
@@ -70,7 +70,7 @@ The dev server proxies requests to the Spring Boot backend, and the app is avail
 ### Required services
 
 - `runs-ai-analyzer` is expected at `http://192.168.4.101:8081` (configurable via `runs-ai-analyzer.base-url`).
-- For AI client access via LiteLLM, run the proxy with `litellm --config litellm_config.yaml --port 4000` and ensure Ollama has `llama3.2:3b` available.
+- For AI client access, a LiteLLM proxy runs on the VM at `http://192.168.4.101:4000` (see [LiteLLM gateway](#litellm-gateway)). Its fallback model is `qwen2.5:3b` on the VM's Ollama.
 
 ### Local configuration
 
@@ -136,6 +136,60 @@ curl -s -X POST http://localhost:8091/mcp \
 ```
 
 This lists the available MCP tools, including `generate_run_diagram`.
+
+## LiteLLM gateway
+
+A LiteLLM proxy runs on the VM next to the diagram-maker container (`runs-server`, `192.168.4.101:4000`). It is **not** part of `docker-compose.yml`. `litellm_config.yaml` in this repo is a copy of the VM's config. It does two jobs:
+
+- **Model gateway** – an OpenAI-compatible `/v1/chat/completions` endpoint. The `default` model is `openai/gpt-4o`, and the router falls back to `ollama_chat/qwen2.5:3b` (the VM's Ollama) when the primary fails, including when `OPENAI_API_KEY` is blank.
+- **MCP gateway** – re-exposes diagram-maker's tools at `http://192.168.4.101:4000/mcp/` as `diagram_maker-generate_run_diagram` and `diagram_maker-generate_analysis_diagram`, so any MCP or OpenAI-style client can use them with one key.
+
+How it runs on the VM:
+
+| What | Where |
+|---|---|
+| LiteLLM install | pip venv `~/litellm-venv` (1.102.1; not one of the compromised 1.82.7/1.82.8) |
+| Config | `~/.config/litellm/config.yaml` (same as `litellm_config.yaml` here) |
+| Secrets | `~/.config/litellm/litellm.env` (`chmod 600`): `LITELLM_MASTER_KEY`, `OPENAI_API_KEY` |
+| Service | systemd user unit `~/.config/systemd/user/litellm.service`, linger enabled so it survives logout/reboot. It refuses to start without `LITELLM_MASTER_KEY`. |
+
+```bash
+systemctl --user status litellm            # on the VM
+systemctl --user restart litellm           # after editing config.yaml or litellm.env
+journalctl --user -u litellm -f            # logs
+```
+
+After changing `litellm_config.yaml` here, copy it to the VM and restart:
+
+```bash
+scp litellm_config.yaml vm:.config/litellm/config.yaml && ssh vm 'systemctl --user restart litellm'
+```
+
+Requests without a valid key are rejected. LiteLLM 1.102.1 without a database answers them with `500`/`400` instead of `401`, because its auth error handler needs the `prisma` package.
+
+Verify on the VM (load the key with `set -a; . ~/.config/litellm/litellm.env; set +a`):
+
+```bash
+# Models
+curl -s http://localhost:4000/v1/models -H "Authorization: Bearer $LITELLM_MASTER_KEY"
+
+# diagram-maker tools through the gateway
+curl -s http://localhost:4000/mcp/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "x-litellm-api-key: Bearer $LITELLM_MASTER_KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+# Let the model pick and call the tool
+curl -s http://localhost:4000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+  -d '{"model":"default",
+       "messages":[{"role":"user","content":"Generate a SUMMARY PNG dashboard for analysis document <documentId>"}],
+       "tools":[{"type":"mcp","server_url":"litellm_proxy/mcp/diagram_maker","server_label":"diagram_maker","require_approval":"never"}]}'
+```
+
+The `x-litellm-model-group` and `x-litellm-attempted-fallbacks` response headers show which model actually answered.
 
 ## Further readings
 

@@ -349,6 +349,15 @@ curl -s -X POST http://localhost:8091/mcp \
 
 This confirms the `generate_run_diagram` tool is exposed. A full tool invocation that produces a real dashboard image requires `runs-ai-analyzer` to be running with sample data and is validated on the VM.
 
+### Phase 10/11 as built (2026-10-01)
+
+- LiteLLM runs directly on the VM (`runs-server`, 192.168.4.101) from the pip venv `~/litellm-venv` (1.102.1, checked to not be the compromised 1.82.7/1.82.8 and to contain no `litellm_init.pth`). It runs as the systemd **user** service `litellm.service` with linger enabled. Config is in `~/.config/litellm/config.yaml` (copied to `litellm_config.yaml` in this repo), and secrets are in `~/.config/litellm/litellm.env` (`chmod 600`). The original `~/litellm_config.yaml` is root-owned and no longer used.
+- A master key is now required (`general_settings.master_key`), and the unit refuses to start without it. Before this, the proxy would have been open to the LAN.
+- The fallback model is `ollama_chat/qwen2.5:3b`. `llama3.2:3b` was never pulled on the VM's Ollama. The `ollama_chat/` prefix uses `/api/chat`, which supports native tool calling.
+- LiteLLM does **not** route to diagram-maker as a model. diagram-maker is registered under `mcp_servers` in `litellm_config.yaml`, and LiteLLM acts as an MCP gateway at `:4000/mcp/`. The architecture diagram above draws LiteLLM between diagram-maker and Ollama, but the actual flow is client → LiteLLM → (model picks tool) → diagram-maker `/mcp`.
+- The runs-app button does not go through LiteLLM. runs-ai-analyzer already knows the `documentId`, so it calls the MCP tool directly with `McpSyncClient`. LiteLLM is only used for the conversational path, where a model chooses the tool.
+- Phase 10/11 gates passed on the VM: `/v1/models` lists `default` and `fallback`, and requests without a valid key are rejected. MCP `tools/list` through `:4000/mcp/` returns both diagram-maker tools. `default` fell back to `qwen2.5:3b` (`x-litellm-attempted-fallbacks: 1`). Asked in plain English, the model called `diagram_maker-generate_analysis_diagram` for a real analysis document, and the VM's diagram-maker container saved a 73,850-byte PNG.
+
 ## Open decisions
 
 - Should `runs-app` also have a direct **"Generate diagram"** button that calls `diagram-maker` via REST, or is diagram generation **only** exposed through the MCP tool for the AI client? If both, a thin REST controller will reuse the same `DiagramMakerMcpTools` / `DashboardImageService`.
